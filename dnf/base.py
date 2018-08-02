@@ -1975,11 +1975,12 @@ class Base(object):
                 obsoletes = self.sack.query().filterm(obsoletes=q.installed())
                 # provide only available packages to solver otherwise selection of available
                 # possibilities will be ignored
-                q = q.available()
+                # usage of upgrades fix problem with reinstalling of installonly packages
+                q = q.upgrades()
                 # add obsoletes into transaction
                 q = q.union(obsoletes)
             else:
-                q = q.available()
+                q = q.upgrades()
             if reponame is not None:
                 q.filterm(reponame=reponame)
             q = self._merge_update_filters(q, pkg_spec=pkg_spec)
@@ -1993,21 +1994,19 @@ class Base(object):
 
     def upgrade_all(self, reponame=None):
         # :api
-        if reponame is None and not self._update_security_filters:
-            self._goal.upgrade_all()
-        else:
-            # provide only available packages to solver otherwise selection of available
-            # possibilities will be ignored
-            q = self.sack.query().available()
-            # add obsoletes into transaction
-            if self.conf.obsoletes:
-                q = q.union(self.sack.query().filterm(obsoletes=self.sack.query().installed()))
-            if reponame is not None:
-                q.filterm(reponame=reponame)
-            q = self._merge_update_filters(q)
-            sltr = dnf.selector.Selector(self.sack)
-            sltr.set(pkg=q)
-            self._goal.upgrade(select=sltr)
+        # provide only available packages to solver otherwise selection of available
+        # possibilities will be ignored
+        # usage of upgrades fix problem with reinstalling of installonly packages
+        q = self.sack.query().upgrades()
+        # add obsoletes into transaction
+        if self.conf.obsoletes:
+            q = q.union(self.sack.query().filterm(obsoletes=self.sack.query().installed()))
+        if reponame is not None:
+            q.filterm(reponame=reponame)
+        q = self._merge_update_filters(q)
+        sltr = dnf.selector.Selector(self.sack)
+        sltr.set(pkg=q)
+        self._goal.upgrade(select=sltr)
         return 1
 
     def distro_sync(self, pkg_spec=None):
